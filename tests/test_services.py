@@ -90,3 +90,4 @@ class TestClientIngestionService:
         assert result.status == "Aguardando Análise"
         assert result.valor_patrimonio == 250000.0
         assert result.prioridade is None
+        assert result.pipefy_card_id is not None

@@ -35,3 +35,4 @@ class ClienteResponse(BaseModel):
     valor_patrimonio: float
     status: str
     prioridade: str | None
+    pipefy_card_id: str | None

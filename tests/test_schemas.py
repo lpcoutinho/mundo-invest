@@ -72,8 +72,10 @@ class TestClienteResponseSchema:
             valor_patrimonio=250000.0,
             status="Aguardando Análise",
             prioridade=None,
+            pipefy_card_id="1356383093",
         )
         assert data.status == "Aguardando Análise"
+        assert data.pipefy_card_id == "1356383093"
 
 
 class TestResponseSchemas:
