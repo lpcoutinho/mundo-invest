@@ -1,10 +1,10 @@
-"""Integration tests for ``ClienteRepository`` against SQLite in-memory.
+"""Integration tests for ``ClienteRepository`` and ``POST /clientes`` endpoint.
 
-These tests exercise the data-access layer directly, bypassing both
-the HTTP router and the service orchestrator, so that repository
-logic can be validated in isolation (F.I.R.S.T. principle).
+Repository tests exercise the data-access layer directly (bypassing HTTP).
+Endpoint tests exercise the full stack: router → service → repository → SQLite.
 """
 from sqlalchemy.ext.asyncio import AsyncSession
+from httpx import AsyncClient
 from app.models.cliente import ClienteRepository
 from app.schemas.cliente import ClienteCreate
 
@@ -58,3 +58,59 @@ class TestClienteRepository:
         repo = ClienteRepository(session)
         model = await repo.get_by_email("notfound@example.com")
         assert model is None
+
+
+class TestClienteEndpoint:
+    """Integration tests for ``POST /clientes/`` via HTTP."""
+
+    async def test_create_with_valid_payload_returns_201(self, client: AsyncClient):
+        """A valid payload should return ``201`` with status ``"Aguardando Análise"``."""
+        response = await client.post(
+            "/clientes/",
+            json={
+                "cliente_nome": "João Silva",
+                "cliente_email": "joao@example.com",
+                "tipo_solicitacao": "Atualização cadastral",
+                "valor_patrimonio": 250000.0,
+            },
+        )
+        assert response.status_code == 201
+        body = response.json()
+        assert body["success"] is True
+        assert body["data"]["status"] == "Aguardando Análise"
+        assert body["data"]["cliente_email"] == "joao@example.com"
+        assert body["data"]["prioridade"] is None
+
+    async def test_create_with_invalid_email_returns_422(self, client: AsyncClient):
+        """An invalid email should return ``422``."""
+        response = await client.post(
+            "/clientes/",
+            json={
+                "cliente_nome": "João Silva",
+                "cliente_email": "not-an-email",
+                "tipo_solicitacao": "Atualização cadastral",
+                "valor_patrimonio": 250000.0,
+            },
+        )
+        assert response.status_code == 422
+
+    async def test_create_with_missing_field_returns_422(self, client: AsyncClient):
+        """A payload missing required fields should return ``422``."""
+        response = await client.post(
+            "/clientes/",
+            json={"cliente_nome": "João Silva"},
+        )
+        assert response.status_code == 422
+
+    async def test_create_with_negative_patrimonio_returns_422(self, client: AsyncClient):
+        """A negative ``valor_patrimonio`` should return ``422``."""
+        response = await client.post(
+            "/clientes/",
+            json={
+                "cliente_nome": "João Silva",
+                "cliente_email": "joao@example.com",
+                "tipo_solicitacao": "Atualização cadastral",
+                "valor_patrimonio": -100.0,
+            },
+        )
+        assert response.status_code == 422
