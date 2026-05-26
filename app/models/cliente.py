@@ -12,7 +12,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.database import Base
 from app.schemas.cliente import ClienteCreate
-from app.errors.exceptions import EntityNotFoundException
+from sqlalchemy.exc import IntegrityError
+from app.errors.exceptions import EntityNotFoundException, IdempotencyConflictException
 
 
 class ClienteModel(Base):
@@ -59,10 +60,19 @@ class ClienteRepository:
         The repository is the single authority on initial state,
         so we don't have to remember to set it in every service
         that creates a client.
+
+        Raises:
+            IdempotencyConflictException: If a client with the same email already exists.
         """
         model = ClienteModel(**data.model_dump(), status="Aguardando Análise")
         self._session.add(model)
-        await self._session.commit()
+        try:
+            await self._session.commit()
+        except IntegrityError:
+            await self._session.rollback()
+            raise IdempotencyConflictException(
+                f"Client with email '{data.cliente_email}' already exists."
+            ) from None
         await self._session.refresh(model)
         return model
 

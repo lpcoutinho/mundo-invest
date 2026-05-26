@@ -21,13 +21,18 @@ _STATUS_MAP: dict[type[DomainError], int] = {
 }
 
 
-async def domain_error_handler(request: Request, exc: DomainError) -> JSONResponse:
+async def domain_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """Convert a ``DomainError`` into a standardised JSON error response.
 
     Why a single handler instead of per-exception decorators:
     A central mapping ensures consistent response structure across
     the entire API without repeating serialisation logic in each route.
     """
+    if not isinstance(exc, DomainError):
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": {"message": "Internal server error", "code": "INTERNAL_ERROR"}},
+        )
     status_code = next(
         (code for exc_type, code in _STATUS_MAP.items() if isinstance(exc, exc_type)),
         400,

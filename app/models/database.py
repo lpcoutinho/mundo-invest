@@ -24,7 +24,7 @@ class Base(DeclarativeBase):
     """
 
 
-engine = create_async_engine(settings.DATABASE_URL, echo=settings.DEBUG)
+engine = create_async_engine(settings.DATABASE_URL, echo=False)
 SessionFactory = async_sessionmaker(engine, expire_on_commit=False)
 
 
