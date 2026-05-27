@@ -4,11 +4,13 @@ These tests validate the system's boundary contracts without
 touching the database or HTTP stack, making them the fastest
 layer in the test suite.
 """
+from datetime import datetime
 from pydantic import ValidationError
 import pytest
 from fastapi import Request
 from app.schemas.cliente import ClienteCreate, ClienteResponse
 from app.schemas.responses import SuccessResponse, ErrorDetail
+from app.schemas.webhook import WebhookEventCreate
 from app.errors.exceptions import (
     EntityNotFoundException,
     IdempotencyConflictException,
@@ -92,6 +94,52 @@ class TestResponseSchemas:
         error = ErrorDetail(message="Not found", code="NOT_FOUND")
         assert error.message == "Not found"
         assert error.code == "NOT_FOUND"
+
+
+class TestWebhookEventCreateSchema:
+    """Input validation rules for ``POST /webhooks/pipefy/card-updated``."""
+
+    def test_valid_payload(self):
+        """All required fields with valid data should create successfully."""
+        data = WebhookEventCreate(
+            event_id="evt_001",
+            card_id="card_001",
+            cliente_email="joao@example.com",
+            timestamp="2026-05-18T12:00:00Z",
+        )
+        assert data.event_id == "evt_001"
+        assert data.card_id == "card_001"
+        assert data.cliente_email == "joao@example.com"
+        assert isinstance(data.timestamp, datetime)
+
+    def test_empty_event_id_raises_error(self):
+        """``event_id`` must not be empty (``min_length=1``)."""
+        with pytest.raises(ValidationError):
+            WebhookEventCreate(
+                event_id="",
+                card_id="card_001",
+                cliente_email="joao@example.com",
+                timestamp="2026-05-18T12:00:00Z",
+            )
+
+    def test_missing_field_raises_error(self):
+        """Omitting a required field should produce a ``ValidationError``."""
+        with pytest.raises(ValidationError):
+            WebhookEventCreate(
+                event_id="evt_001",
+                cliente_email="joao@example.com",
+                timestamp="2026-05-18T12:00:00Z",
+            )
+
+    def test_invalid_timestamp_raises_error(self):
+        """An unparseable timestamp string should produce a ``ValidationError``."""
+        with pytest.raises(ValidationError):
+            WebhookEventCreate(
+                event_id="evt_001",
+                card_id="card_001",
+                cliente_email="joao@example.com",
+                timestamp="not-a-timestamp",
+            )
 
 
 class TestDomainExceptions:
