@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "postgresql+asyncpg://app:app123@localhost:5432/mundo_invest"
     DEBUG: bool = False
+    PIPEFY_PIPE_ID: str = "307173097"
 
 
 settings = Settings()

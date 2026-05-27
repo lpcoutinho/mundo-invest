@@ -22,15 +22,20 @@ class ClientIngestionService:
     without affecting database assertions, and vice versa.
     """
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, pipefy: PipefyGraphQLClient) -> None:
         self._repository = ClienteRepository(session)
-        self._pipefy = PipefyGraphQLClient()
+        self._pipefy = pipefy
+        self._session = session
 
     async def execute(self, data: ClienteCreate) -> ClienteResponse:
         """Register a new client and simulate the corresponding Pipefy card.
 
         The flow is intentionally sequential — we persist locally first
         so that the client record exists even if the Pipefy call fails.
+
+        After the Pipefy card is created, the returned ``card_id`` is
+        persisted on the client record so the system can reference it
+        later (e.g. for webhook-driven updates).
         """
         model = await self._repository.create(data)
         pipefy_response = await self._pipefy.send_create_card(
@@ -40,6 +45,10 @@ class ClientIngestionService:
             tipo_solicitacao=data.tipo_solicitacao,
         )
         pipefy_card_id = pipefy_response.get("data", {}).get("createCard", {}).get("card", {}).get("id")
+        if pipefy_card_id:
+            model.pipefy_card_id = pipefy_card_id
+            await self._session.commit()
+            await self._session.refresh(model)
         logger.debug("Pipefy card created: %s", pipefy_card_id)
         return ClienteResponse(
             cliente_nome=model.cliente_nome,
