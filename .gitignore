@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+# Environment
+.env
+.env.local
+# IDE
+.vscode/
+.idea/
+# OS
+.DS_Store
+Thumbs.db
+# Docker
+pgdata/
+# Test / Coverage
+.coverage
+htmlcov/
+.pytest_cache/
