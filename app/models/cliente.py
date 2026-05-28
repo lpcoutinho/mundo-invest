@@ -23,6 +23,10 @@ class ClienteModel(Base):
     and is later updated to ``"Processado"`` when a webhook event
     confirms processing. ``prioridade`` is ``NULL`` until the
     webhook-driven business rule calculates it.
+
+    ``pipefy_card_id`` stores the Pipefy card ID returned by the
+    ``createCard`` mutation so the system can reference the card
+    in future updates without re-creating it.
     """
     __tablename__ = "clientes"
 
@@ -34,6 +38,7 @@ class ClienteModel(Base):
         String, nullable=False, default="Aguardando Análise"
     )
     prioridade: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    pipefy_card_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -12,6 +12,7 @@ from app.models.database import engine, Base
 from app.errors.handlers import domain_error_handler
 from app.errors.exceptions import DomainError
 from app.api.v1.clientes import router as clientes_router
+from app.api.v1.webhooks import router as webhooks_router
 import logging
 
 logging.basicConfig(
@@ -47,6 +48,7 @@ app = FastAPI(
 
 app.add_exception_handler(DomainError, domain_error_handler)
 app.include_router(clientes_router)
+app.include_router(webhooks_router)
 
 
 @app.get("/health")

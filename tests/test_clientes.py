@@ -32,6 +32,7 @@ class TestClienteRepository:
         assert model.cliente_nome == "João Silva"
         assert model.status == "Aguardando Análise"
         assert model.valor_patrimonio == 250000.0
+        assert model.pipefy_card_id is None
 
     async def test_get_by_email_found(self, session: AsyncSession):
         """``get_by_email`` should return the model when the email exists."""
@@ -80,6 +81,7 @@ class TestClienteEndpoint:
         assert body["data"]["status"] == "Aguardando Análise"
         assert body["data"]["cliente_email"] == "joao@example.com"
         assert body["data"]["prioridade"] is None
+        assert body["data"]["pipefy_card_id"] is not None
 
     async def test_create_with_invalid_email_returns_422(self, client: AsyncClient):
         """An invalid email should return ``422``."""

@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.cliente import ClienteCreate, ClienteResponse
 from app.schemas.responses import SuccessResponse
 from app.models.database import get_session
+from app.core.settings import settings
+from app.services.pipefy_graphql_client import PipefyGraphQLClient
 from app.services.client_ingestion_service import ClientIngestionService
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
@@ -33,6 +35,7 @@ async def create_cliente(
     Returns ``201`` with the persisted client data including the
     server-assigned ``status`` field.
     """
-    service = ClientIngestionService(session)
+    pipefy = PipefyGraphQLClient(settings.PIPEFY_PIPE_ID)
+    service = ClientIngestionService(session, pipefy)
     result = await service.execute(payload)
     return SuccessResponse(data=result)
