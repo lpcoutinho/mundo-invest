@@ -62,12 +62,12 @@ class TestClienteRepository:
 
 
 class TestClienteEndpoint:
-    """Integration tests for ``POST /clientes/`` via HTTP."""
+    """Integration tests for ``POST /clientes`` via HTTP."""
 
     async def test_create_with_valid_payload_returns_201(self, client: AsyncClient):
         """A valid payload should return ``201`` with status ``"Aguardando Análise"``."""
         response = await client.post(
-            "/clientes/",
+            "/clientes",
             json={
                 "cliente_nome": "João Silva",
                 "cliente_email": "joao@example.com",
@@ -86,7 +86,7 @@ class TestClienteEndpoint:
     async def test_create_with_invalid_email_returns_422(self, client: AsyncClient):
         """An invalid email should return ``422``."""
         response = await client.post(
-            "/clientes/",
+            "/clientes",
             json={
                 "cliente_nome": "João Silva",
                 "cliente_email": "not-an-email",
@@ -99,7 +99,7 @@ class TestClienteEndpoint:
     async def test_create_with_missing_field_returns_422(self, client: AsyncClient):
         """A payload missing required fields should return ``422``."""
         response = await client.post(
-            "/clientes/",
+            "/clientes",
             json={"cliente_nome": "João Silva"},
         )
         assert response.status_code == 422
@@ -107,7 +107,7 @@ class TestClienteEndpoint:
     async def test_create_with_negative_patrimonio_returns_422(self, client: AsyncClient):
         """A negative ``valor_patrimonio`` should return ``422``."""
         response = await client.post(
-            "/clientes/",
+            "/clientes",
             json={
                 "cliente_nome": "João Silva",
                 "cliente_email": "joao@example.com",
