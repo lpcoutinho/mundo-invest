@@ -54,7 +54,7 @@ class TestWebhookEndpoint:
 
     async def test_webhook_high_priority(self, client: AsyncClient):
         """``valor_patrimonio >= 200k`` should result in ``prioridade_alta``."""
-        await client.post("/clientes/", json={
+        await client.post("/clientes", json={
             "cliente_nome": "João Silva",
             "cliente_email": "joao@example.com",
             "tipo_solicitacao": "Atualização cadastral",
@@ -74,7 +74,7 @@ class TestWebhookEndpoint:
 
     async def test_webhook_normal_priority(self, client: AsyncClient):
         """``valor_patrimonio < 200k`` should result in ``prioridade_normal``."""
-        await client.post("/clientes/", json={
+        await client.post("/clientes", json={
             "cliente_nome": "Maria Souza",
             "cliente_email": "maria@example.com",
             "tipo_solicitacao": "Atualização cadastral",
@@ -91,7 +91,7 @@ class TestWebhookEndpoint:
 
     async def test_webhook_idempotency_returns_409(self, client: AsyncClient):
         """Re-processing the same ``event_id`` should return ``409 Conflict``."""
-        await client.post("/clientes/", json={
+        await client.post("/clientes", json={
             "cliente_nome": "Carlos Lima",
             "cliente_email": "carlos@example.com",
             "tipo_solicitacao": "Atualização cadastral",

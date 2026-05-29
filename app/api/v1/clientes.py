@@ -17,7 +17,7 @@ router = APIRouter(prefix="/clientes", tags=["Clientes"])
 
 
 @router.post(
-    "/",
+    "",
     response_model=SuccessResponse[ClienteResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create a new client and simulate Pipefy card creation",
