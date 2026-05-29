@@ -1,0 +1,12 @@
+# OpenTofu
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+terraform.tfplan
+lambda_deployment.zip
+package/

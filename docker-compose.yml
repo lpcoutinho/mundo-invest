@@ -1,14 +1,99 @@
 services:
+  # PostgreSQL - Banco de dados
   postgres:
     image: postgres:16-alpine
+    container_name: mundo-invest-postgres
     environment:
-      POSTGRES_DB: mundo_invest
-      POSTGRES_USER: app
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app123}
+      POSTGRES_DB: ${POSTGRES_DB:-mundo_invest}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-rds.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d mundo_invest"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mundo-invest-network
+    restart: unless-stopped
+
+  # Floci - AWS Emulator (sem PostgreSQL)
+  floci:
+    image: floci/floci:latest
+    container_name: mundo-invest-floci
+    ports:
+      - "4566:4566"        # Edge: API Gateway, Lambda, DynamoDB, S3
+    environment:
+      SERVICES: lambda,apigateway,dynamodb,s3,cloudwatch,logs
+      DEBUG: ${DEBUG:-1}
+      DATA_DIR: /tmp/floci_data
+      LAMBDA_EXECUTOR: docker-reuse
+    volumes:
+      - floci_data:/tmp/floci_data
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4566/_localstack/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - mundo-invest-network
+    restart: unless-stopped
+
+  # App (simula Lambda)
+  app:
+    build: .
+    container_name: mundo-invest-app
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app123}@postgres:5432/${POSTGRES_DB:-mundo_invest}
+      DEBUG: ${DEBUG:-1}
+      PIPEFY_PIPE_ID: ${PIPEFY_PIPE_ID:-307173097}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test_access_key}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test_secret_key}
+      AWS_ENDPOINT_URL: http://floci:4566
+      AWS_REGION: us-east-1
+      ENV: development
+      OBSERVABILITY_STACK: floci
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      floci:
+        condition: service_healthy
+    networks:
+      - mundo-invest-network
+    restart: unless-stopped
+
+  # OpenTofu (para testar infra localmente)
+  tofu:
+    image: ghcr.io/opentofu/opentofu:latest
+    container_name: mundo-invest-tofu
+    working_dir: /workspace
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test_access_key}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test_secret_key}
+      AWS_ENDPOINT_URL: http://floci:4566
+    volumes:
+      - ./infrastructure:/workspace
+      - /tmp/terraform-data:/workspace/.terraform
+    depends_on:
+      floci:
+        condition: service_healthy
+    networks:
+      - mundo-invest-network
+    profiles:
+      - tofu  # Só inicia com: docker compose --profile tofu up
 
 volumes:
-  pgdata:
+  floci_data:
+  postgres_data:
+
+networks:
+  mundo-invest-network:
+    driver: bridge
