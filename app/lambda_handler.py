@@ -4,6 +4,7 @@ Este adapter permite que a aplicação FastAPI rode no AWS Lambda
 através do Mangum, que traduz eventos do Lambda para ASGI.
 """
 import os
+from typing import Any, Dict, cast
 import boto3
 import json
 from mangum import Mangum
@@ -25,7 +26,8 @@ def get_secret(secret_arn: str) -> dict:
     try:
         response = secrets_client.get_secret_value(SecretId=secret_arn)
         secret_string = response['SecretString']
-        return json.loads(secret_string)
+        parsed: dict = json.loads(secret_string)
+        return parsed
     except Exception as e:
         print(f"Erro ao buscar secret {secret_arn}: {e}")
         return {}
@@ -54,7 +56,7 @@ def load_secrets():
 
 
 # Handler Lambda
-def handler(event, context):
+def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handler para AWS Lambda.
 
     Args:
@@ -70,8 +72,9 @@ def handler(event, context):
     # Criar adapter Mangum
     mangum_handler = Mangum(app, lifespan="off")
 
-    # Executar handler
-    return mangum_handler(event, context)
+    # Executar handler e forçar o type casting para o MyPy
+    response = mangum_handler(event, context)
+    return cast(Dict[str, Any], response)
 
 
 # Exportar handler
