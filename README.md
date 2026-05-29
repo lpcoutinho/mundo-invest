@@ -11,6 +11,7 @@ Sistema interno para gestão de clientes e integração com Pipefy via GraphQL.
 - **Testes:** Pytest + HTTPX AsyncClient
 - **Infra (produção):** AWS Lambda + API Gateway + RDS + DynamoDB (OpenTofu)
 - **Local dev:** Floci (AWS emulator) + Docker Compose
+- **Automação:** Makefile
 
 ## 🎯 Por que FastAPI + Mangum + Lambda?
 
@@ -159,8 +160,8 @@ resource "aws_lambda_function" "app" {
 
 **Exemplo de uso**:
 ```bash
-# 1. Subir Floci
-docker compose up --build
+# 1. Buildar e subir todo o stack
+make build && make up
 
 # 2. Criar recursos
 bash scripts/init-floci.sh
@@ -177,10 +178,48 @@ tofu plan -var-file=environments/dev.tfvars
 - Python 3.10+
 - Docker (para banco PostgreSQL local e Floci)
 - OpenTofu >= 1.5.0 (para deploy na AWS)
+- make
+
+## Comandos Make
+
+O projeto utiliza `make` para automatizar tarefas comuns de desenvolvimento e Docker.
+
+### Desenvolvimento Local
+
+| Comando | Descrição |
+|---------|-----------|
+| `make install` | Instalar dependências do projeto |
+| `make dev` | Instalar dependências incluindo dev |
+| `make lint` | Rodar ruff (linter) |
+| `make typecheck` | Rodar mypy (type checker) |
+| `make check` | Rodar lint + typecheck |
+| `make test` | Rodar testes com pytest |
+| `make test-cov` | Rodar testes com cobertura |
+| `make run` | Subir servidor uvicorn |
+
+### Docker
+
+| Comando | Descrição |
+|---------|-----------|
+| `make build` | Build da imagem Docker da aplicação |
+| `make up` | Subir todo o stack (postgres + floci + app) |
+| `make down` | Derrubar todos os serviços |
+| `make db-up` | Subir apenas PostgreSQL via Docker |
+| `make db-down` | Parar apenas PostgreSQL |
+| `make logs` | Tail dos logs do container app |
+| `make shell` | Bash interativo no container app |
+| `make test-docker` | Rodar pytest dentro do container app |
+| `make clean-docker` | Derrubar tudo e remover volumes |
+
+### Utilitários
+
+| Comando | Descrição |
+|---------|-----------|
+| `make clean` | Remover cache e artefatos |
 
 ## Setup
 
-### Opção 1: Desenvolvimento Local (Recomendado)
+### Opção 1: Desenvolvimento Local com Docker (Recomendado)
 
 ```bash
 # 1. Clonar repositório
@@ -190,16 +229,75 @@ git clone <repo-url> && cd mundo-invest-backend
 python -m venv .venv && source .venv/bin/activate
 
 # 3. Instalar dependências
-pip install -e ".[dev]"
+make dev
 
-# 4. Subir Floci + PostgreSQL + App
-docker compose up --build
+# 4. Buildar imagem e subir stack completo
+make build && make up
 
 # 5. A API estará disponível em
 open http://localhost:8000/docs
+
+# Para acompanhar os logs
+make logs
 ```
 
-### Opção 2: Produção AWS
+### Opção 2: Desenvolvimento Local Só com Python
+
+```bash
+# 1. Clonar repositório
+git clone <repo-url> && cd mundo-invest-backend
+
+# 2. Criar ambiente virtual
+python -m venv .venv && source .venv/bin/activate
+
+# 3. Instalar dependências
+make dev
+
+# 4. Subir apenas o PostgreSQL
+make db-up
+
+# 5. Rodar servidor localmente
+make run
+```
+
+### Opção 3: Windows (PowerShell)
+
+No Windows o `make` não está disponível nativamente. Instale via [Chocolatey](https://chocolatey.org/) ou use os comandos `docker compose` diretamente.
+
+```powershell
+# ── Instalar make (opcional, recomentado) ──
+choco install make
+
+# ── Setup ──
+git clone <repo-url>
+cd mundo-invest-backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+
+# ── Docker (precisa do Docker Desktop) ──
+docker compose build app
+docker compose up -d
+
+# ── Logs ──
+docker compose logs -f app
+
+# ── Shell interativo ──
+docker compose exec app cmd
+
+# ── Testes dentro do container ──
+docker compose run --rm app pytest -v
+
+# ── Derrubar tudo ──
+docker compose down
+
+# ── Limpar volumes ──
+docker compose down -v
+```
+
+> **Alternativa sem `make`**: Use os comandos `docker compose` acima diretamente no PowerShell. Todos os targets do Makefile têm equivalentes manuais listados na seção "Comandos Make".
+
+### Opção 4: Produção AWS
 
 ```bash
 # 1. Configurar backend OpenTofu (primeira vez)
@@ -228,18 +326,33 @@ tofu apply -var-file=environments/prod.tfvars \
 ### Testes Unitários (SQLite em memória)
 
 ```bash
-pytest -v --cov=app
+make test-cov
 ```
 
-### Testes de Integração (Floci)
+### Testes de Integração (Floci + PostgreSQL)
 
 ```bash
-# 1. Subir Floci
-docker compose up --build
+# 1. Subir stack completo
+make build && make up
 
-# 2. Rodar testes contra PostgreSQL
-DATABASE_URL="postgresql+asyncpg://app:app123@localhost:5433/mundo_invest" \
-pytest -v --cov=app
+# 2. Rodar testes dentro do container (conectado ao PostgreSQL/Floci)
+make test-docker
+```
+
+### Testes Específicos
+
+```bash
+# Criação de cliente
+make test-docker ARGS="tests/test_clientes.py::test_create_cliente_success -v"
+
+# Webhook com prioridade alta (patrimônio >= 200.000)
+make test-docker ARGS="tests/test_webhooks.py::test_webhook_card_updated_high_priority -v"
+
+# Webhook com prioridade normal (patrimônio < 200.000)
+make test-docker ARGS="tests/test_webhooks.py::test_webhook_card_updated_normal_priority -v"
+
+# Idempotência (event_id duplicado)
+make test-docker ARGS="tests/test_webhooks.py::test_webhook_idempotency -v"
 ```
 
 ## Exemplos de Requisição
@@ -597,6 +710,7 @@ mundo-invest/
 ├── tests/                   → Pytest
 ├── docker-compose.yml       → Floci + App + OpenTofu
 ├── Dockerfile               → Containerização
+├── Makefile                 → Automação (build, up, test, etc.)
 ├── pyproject.toml           → Dependências
 └── README.md               → Esta documentação
 ```
@@ -638,29 +752,29 @@ mutation updateCardField($input: UpdateCardFieldInput!) {
 ### 1. Criação de cliente
 
 ```bash
-pytest tests/test_clientes.py::test_create_cliente_success -v
+make test-docker ARGS="tests/test_clientes.py::test_create_cliente_success -v"
 ```
 
 ### 2. Processamento de webhook com prioridade
 
 ```bash
 # Patrimônio >= 200.000 → prioridade_alta
-pytest tests/test_webhooks.py::test_webhook_card_updated_high_priority -v
+make test-docker ARGS="tests/test_webhooks.py::test_webhook_card_updated_high_priority -v"
 
 # Patrimônio < 200.000 → prioridade_normal
-pytest tests/test_webhooks.py::test_webhook_card_updated_normal_priority -v
+make test-docker ARGS="tests/test_webhooks.py::test_webhook_card_updated_normal_priority -v"
 ```
 
 ### 3. Idempotência (event_id duplicado)
 
 ```bash
-pytest tests/test_webhooks.py::test_webhook_idempotency -v
+make test-docker ARGS="tests/test_webhooks.py::test_webhook_idempotency -v"
 ```
 
 ### Rodar todos os testes
 
 ```bash
-pytest -v --cov=app
+make test-docker
 ```
 
 ## Troubleshooting
@@ -672,9 +786,8 @@ pytest -v --cov=app
 lsof -i :4566  # Floci
 lsof -i :5433  # PostgreSQL
 
-# Limpar volumes docker
-docker compose down -v
-docker compose up --build
+# Limpar volumes docker e rebuildar
+make clean-docker && make build && make up
 ```
 
 ### Erro: "Lambda timeout"
