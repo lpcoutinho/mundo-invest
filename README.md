@@ -78,7 +78,7 @@ pytest -v --cov=app
 docker compose up --build
 
 # 2. Rodar testes contra PostgreSQL
-DATABASE_URL="postgresql+asyncpg://app:app123@localhost:5433/mundo_invest?sslmode=disable" \
+DATABASE_URL="postgresql+asyncpg://app:app123@localhost:5433/mundo_invest" \
 pytest -v --cov=app
 ```
 
@@ -113,10 +113,15 @@ curl -X POST https://api-id.execute-api.us-east-1.amazonaws.com/prod/clientes \
 Response: `201 Created`
 ```json
 {
-  "email": "joao.silva@example.com",
-  "nome": "João Silva",
-  "renda_mensal": 20000.0,
-  "created_at": "2026-05-29T12:00:00Z"
+  "success": true,
+  "data": {
+    "cliente_nome": "João Silva",
+    "cliente_email": "joao.silva@example.com",
+    "tipo_solicitacao": "Atualização cadastral",
+    "valor_patrimonio": 250000.0,
+    "status": "Aguardando Análise",
+    "prioridade": null
+  }
 }
 ```
 
@@ -157,6 +162,8 @@ Response: `200 OK`
   }
 }
 ```
+
+**Nota:** Para `valor_patrimonio >= 200000` retorna `prioridade_alta`. Para `< 200000` retorna `prioridade_normal`.
 
 ### Idempotência (event_id duplicado)
 
